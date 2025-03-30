@@ -353,6 +353,55 @@ header p {
   color: #666;
 }
 
+/* Add these styles to your popup.css file */
+.wiki-summary {
+  color: #333;
+  line-height: 1.6;
+  font-size: 14px;
+  margin-bottom: 10px;
+  max-height: 250px;  /* Allow more content to be displayed */
+  overflow-y: auto;   /* Add scrolling for very large entries */
+  padding-right: 5px;
+}
+
+.no-wiki-info {
+  color: #666;
+  font-style: italic;
+  padding: 8px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.keypoint-text {
+  font-weight: 600;
+  margin-bottom: 10px;
+  line-height: 1.4;
+  font-size: 16px;
+  color: #111;
+}
+
+.wiki-title-link {
+  color: #0366d6;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.wiki-title-link:hover {
+  text-decoration: underline;
+}
+
+.keypoint-wiki-info {
+  background-color: #f5f5f5;
+  padding: 14px;
+  border-radius: 8px;
+  margin-top: 8px;
+  position: relative;
+  border-left: 3px solid #0366d6;
+}
+
 /* Responsive adjustments */
 @media (max-width: 830px) {
   body {

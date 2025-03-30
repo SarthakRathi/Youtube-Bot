@@ -177,6 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiEndpoints = {
       'summarize': 'http://localhost:5000/api/summarize',
       'keypoints': 'http://localhost:5000/api/keypoints',
+      'keypoints_wiki': 'http://localhost:5000/api/keypoints_wiki',
       'timestamps': 'http://localhost:5000/api/timestamps',
       'sentiment': 'http://localhost:5000/api/sentiment'
     };
@@ -290,6 +291,73 @@ document.addEventListener('DOMContentLoaded', function() {
           `;
           break;
           
+        case 'keypoints_wiki':
+          fetch('http://localhost:5000/api/keypoints_wiki', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              videoId: videoId,
+              numTerms: 8  // Request 8 terms instead of default 5
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`API responded with status ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data.status === 'error') {
+              throw new Error(data.error || 'Unknown error occurred');
+            }
+            
+            let keyTermsHtml = `
+              <div class="keypoints-wiki-result">
+                <h3>Key Terms with Wikipedia Context</h3>
+                <p class="feature-description">Important concepts, people, and places mentioned in this video</p>
+                <div class="keypoints-wiki-container">
+            `;
+            
+            // Add each key term
+            data.keyPoints.forEach((item, index) => {
+              keyTermsHtml += `
+                <div class="keypoint-wiki-item">
+                  <div class="keypoint-content">
+                    ${item.wikipedia_info ? `
+                      <div class="keypoint-wiki-info">
+                        <div class="wiki-title">
+                          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAB/ElEQVQ4jZ2Tv2sUQRTHP7O7l8seEezy4w+IYhFRLFQSBSGF2CgIFoqFhYVYWFj5L1j6B1hZCIKixUVFDKiIRRr9FYyIQdDo3d7e7fpiMXvJ5mLAB9Pswzffb+Z7M/C/pLOQQnYwKSrjEJ8qYkClXR3GXKZYYn3p5jZjdDaRkN9dAo/XqmfVKFELViS+h7dCvdHvCH+9MBCoZAXFD5dQPTVIJCBH8BbFvwBx+cRaMBTw+PJl4PUgvU2kTQ8XZz7uzH+LX6BQPXZfKntmZqZWyodKpVJXVWLnHKlzqCrRWhTDMPA+Auwv5UPj4bCa5WmW51mejccq7U4YhupHgp2iDeDQYrM25KSCZ7ZmYkzZGGNNagICtq0F7sWWy2G7b5tNcE3ANwWf4MWdqPEz7yMDWDQrMnIbBPXbTw5+bbODQnNnrD5y6nzYXUPktcDRLYILU3fX1mG8b4MiJsqCGbYmQHp62tbKjfH1yNM3iqx0Fy9OLB34BHB49G5NRN8qXJidnT35r399fX0NReqK3JqanPy0NTO0+hG+g5WGO1cq77+WXxcj9fGx0SiKojgGGGgE4J7nZf8W6qVa7X24uPgBONwHcAS4BtieiYDQH6Uik73gW4FFoLsJaJAHJoB5YHDzPZADNXqW9csfXkwKBTAogL8AAAAASUVORK5CYII=" class="wiki-icon">
+                          <a href="${item.wikipedia_info.url}" target="_blank" class="wiki-title-link">${item.wikipedia_info.title}</a>
+                        </div>
+                        <div class="wiki-summary">${item.wikipedia_info.summary}</div>
+                      </div>
+                    ` : '<div class="no-wiki-info">No Wikipedia information available for this term.</div>'}
+                  </div>
+                </div>
+              `;
+            });
+            
+            keyTermsHtml += `
+                </div>
+              </div>
+            `;
+            
+            resultContent.innerHTML = keyTermsHtml;
+          })
+          .catch(error => {
+            console.error('Error processing key terms with wiki:', error);
+            resultContent.innerHTML = `
+              <div class="error-message">
+                <h3>Error Processing Request</h3>
+                <p>${error.message}</p>
+                <p>Make sure the Python backend server is running at http://localhost:5000</p>
+              </div>
+            `;
+          });
+          break;          
+
         default:
           result = `<div class="error">Unexpected feature type: ${feature}</div>`;
       }

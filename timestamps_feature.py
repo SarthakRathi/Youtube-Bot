@@ -24,6 +24,10 @@ def ensure_nltk_data():
     print(f"Downloading punkt to {nltk_data_dir}")
     nltk.download('punkt', download_dir=nltk_data_dir, quiet=False)
     
+    # Add punkt_tab download
+    print(f"Downloading punkt_tab to {nltk_data_dir}")
+    nltk.download('punkt_tab', download_dir=nltk_data_dir, quiet=False)
+    
     # Verify the download worked
     try:
         nltk.data.find('tokenizers/punkt')

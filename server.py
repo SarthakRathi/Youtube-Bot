@@ -266,6 +266,88 @@ def analyze_sentiment():
         'message': 'Sentiment analysis feature coming soon'
     })
 
+@app.route('/api/keypoints_wiki', methods=['POST', 'OPTIONS'])
+def extract_keypoints_with_wiki():
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    # Get data from request
+    data = request.json
+    video_id = data.get('videoId')
+    
+    if not video_id:
+        return jsonify({'error': 'No video ID provided'}), 400
+    
+    # Get number of terms requested (default to 8)
+    num_terms = int(data.get('numTerms', 8))
+    
+    # Check if we have a cached result with the correct number of terms
+    cache_key = f"keypoints_wiki_{video_id}_{num_terms}"
+    if cache_key in summary_cache:
+        print(f"Using cached wiki key terms for video {video_id}")
+        return jsonify(summary_cache[cache_key])
+    
+    try:
+        # Ensure NLTK resources are downloaded
+        try:
+            import nltk
+            nltk.download('punkt')
+            nltk.download('stopwords')
+        except Exception as e:
+            print(f"Warning: NLTK download issue: {e}")
+        
+        # Get transcript directly without summarizing
+        from youtube_transcript_api import YouTubeTranscriptApi
+        
+        try:
+            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            transcript = ' '.join([item['text'] for item in transcript_list])
+            print(f"Retrieved transcript with {len(transcript.split())} words")
+        except Exception as e:
+            print(f"Error fetching transcript: {e}")
+            return jsonify({'error': 'Could not retrieve transcript'}), 400
+        
+        # Import the Wikipedia integration module
+        import wikipedia_integration
+        
+        print(f"Generating {num_terms} key terms with Wikipedia information...")
+        
+        # Generate key terms with Wikipedia information
+        key_terms = wikipedia_integration.generate_key_points_with_wikipedia(
+            transcript, 
+            max_terms=num_terms
+        )
+        
+        print(f"Generated {len(key_terms)} key terms")
+        
+        # Verify we have the expected number
+        if len(key_terms) < num_terms:
+            print(f"Warning: Only generated {len(key_terms)} terms, expected {num_terms}")
+        
+        # Prepare response
+        result = {
+            'status': 'success',
+            'videoId': video_id,
+            'keyPoints': key_terms,
+            'timestamp': time.time()
+        }
+        
+        # Cache the result
+        summary_cache[cache_key] = result
+        
+        # Return result
+        return jsonify(result)
+    
+    except Exception as e:
+        error_response = {
+            'status': 'error',
+            'videoId': video_id,
+            'error': str(e)
+        }
+        print(f"Error in keypoints_wiki: {str(e)}")
+        return jsonify(error_response), 500
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({

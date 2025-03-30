@@ -43,20 +43,6 @@ function initialize() {
   window.ytNlpAssistantLoaded = true;
 }
 
-// Try to extract subtitles from the video
-function tryGetSubtitles() {
-  // This would need a more sophisticated approach to actually get subtitles
-  // Possible methods:
-  // 1. Use YouTube's API (requires API key)
-  // 2. Parse the caption track elements if they exist
-  // 3. Use a third-party service that provides subtitle extraction
-  
-  console.log('Attempting to extract subtitles for video: ' + currentVideoId);
-  
-  // For demonstration, we'll just set a placeholder
-  subtitlesText = 'Subtitle extraction would happen here in a production version.';
-}
-
 // Observe for video changes (YouTube is a single-page application)
 function observeVideoChanges() {
   // Create a new observer for the video container
@@ -181,6 +167,150 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
       console.error('Error getting summary:', error);
       const errorText = `
         <p class="quick-result-error">Error generating summary: ${error.message}</p>
+        <p class="quick-result-note">Make sure the Python backend is running on http://localhost:5000</p>
+      `;
+      updateQuickResult(errorText);
+    });
+    
+    sendResponse({status: 'processing'});
+    return true;
+  }
+
+  if (request.action === 'quickKeyPointsWiki') {
+    console.log('YouTube NLP Assistant: Generating key points with Wikipedia info');
+    displayQuickResult('Generating key points with contextual information...', 'key_points_wiki');
+    
+    // Make an API call to our Python backend
+    fetch('http://localhost:5000/api/keypoints_wiki', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        videoId: currentVideoId,
+        numPoints: 5
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`API responded with status ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.status === 'success') {
+        // Build HTML for key points with wiki info
+        let keyPointsHtml = '<p><strong>Key Points with Context:</strong></p>';
+        
+        data.keyPoints.forEach((point, index) => {
+          keyPointsHtml += `
+            <div class="key-point-item">
+              <div class="key-point-number">${index + 1}</div>
+              <div class="key-point-content">
+                <div class="key-point-text">${point.key_point}</div>
+                ${point.wikipedia_info ? `
+                  <div class="wikipedia-info">
+                    <div class="wikipedia-title">
+                      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAB/ElEQVQ4jZ2Tv2sUQRTHP7O7l8seEezy4w+IYhFRLFQSBSGF2CgIFoqFhYVYWFj5L1j6B1hZCIKixUVFDKiIRRr9FYyIQdDo3d7e7fpiMXvJ5mLAB9Pswzffb+Z7M/C/pLOQQnYwKSrjEJ8qYkClXR3GXKZYYn3p5jZjdDaRkN9dAo/XqmfVKFELViS+h7dCvdHvCH+9MBCoZAXFD5dQPTVIJCBH8BbFvwBx+cRaMBTw+PJl4PUgvU2kTQ8XZz7uzH+LX6BQPXZfKntmZqZWyodKpVJXVWLnHKlzqCrRWhTDMPA+Auwv5UPj4bCa5WmW51mejccq7U4YhupHgp2iDeDQYrM25KSCZ7ZmYkzZGGNNagICtq0F7sWWy2G7b5tNcE3ANwWf4MWdqPEz7yMDWDQrMnIbBPXbTw5+bbODQnNnrD5y6nzYXUPktcDRLYILU3fX1mG8b4MiJsqCGbYmQHp62tbKjfH1yNM3iqx0Fy9OLB34BHB49G5NRN8qXJidnT35r399fX0NReqK3JqanPy0NTO0+hG+g5WGO1cq77+WXxcj9fGx0SiKojgGGGgE4J7nZf8W6qVa7X24uPgBONwHcAS4BtieiYDQH6Uik73gW4FFoLsJaJAHJoB5YHDzPZADNXqW9csfXkwKBTAogL8AAAAASUVORK5CYII=" class="wiki-icon">
+                      <span>${point.wikipedia_info.title}</span>
+                    </div>
+                    <div class="wikipedia-summary">${point.wikipedia_info.summary}</div>
+                    <a href="${point.wikipedia_info.url}" target="_blank" class="wiki-link">Read more on Wikipedia</a>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        });
+        
+        keyPointsHtml += `
+          <p class="quick-result-note">Key points extracted from video content with Wikipedia context</p>
+          <p class="quick-result-note">Open extension for more options</p>
+        `;
+        
+        updateQuickResult(keyPointsHtml);
+        
+        // Add custom CSS for key points display
+        const style = document.createElement('style');
+        style.textContent += `
+          .key-point-item {
+            display: flex;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+          }
+          
+          .key-point-number {
+            background-color: #FF0000;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+            flex-shrink: 0;
+          }
+          
+          .key-point-content {
+            flex: 1;
+          }
+          
+          .key-point-text {
+            font-weight: 500;
+            margin-bottom: 8px;
+          }
+          
+          .wikipedia-info {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+            font-size: 14px;
+          }
+          
+          .wikipedia-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+          }
+          
+          .wiki-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 5px;
+          }
+          
+          .wikipedia-summary {
+            color: #555;
+            line-height: 1.4;
+          }
+          
+          .wiki-link {
+            display: inline-block;
+            margin-top: 5px;
+            color: #0366d6;
+            text-decoration: none;
+            font-size: 12px;
+          }
+          
+          .wiki-link:hover {
+            text-decoration: underline;
+          }
+        `;
+        document.head.appendChild(style);
+        
+      } else {
+        throw new Error(data.error || 'Unknown error occurred');
+      }
+    })
+    .catch(error => {
+      console.error('Error getting key points with wiki:', error);
+      const errorText = `
+        <p class="quick-result-error">Error generating key points: ${error.message}</p>
         <p class="quick-result-note">Make sure the Python backend is running on http://localhost:5000</p>
       `;
       updateQuickResult(errorText);

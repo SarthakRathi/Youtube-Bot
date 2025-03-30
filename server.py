@@ -4,12 +4,16 @@ import youtube_summarizer
 import time
 import os
 
-app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+# Import the timestamps feature
+import timestamps_feature
 
-# Create a cache to store previously generated summaries
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+
+# Create a cache to store previously generated results
 summary_cache = {}
 timestamps_cache = {}
+segment_cache = {}
 
 @app.route('/api/summarize', methods=['POST', 'OPTIONS'])
 def summarize_video():
@@ -89,60 +93,8 @@ def generate_video_timestamps():
     try:
         print(f"Generating timestamps for video {video_id}...")
         
-        # Create a simplified implementation of timestamps since we don't have the full module
-        from youtube_transcript_api import YouTubeTranscriptApi
-        
-        # Get the transcript
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        
-        # Generate simple timestamps at regular intervals
-        timestamps = []
-        
-        if transcript:
-            # Group transcript into segments (roughly every 60 seconds)
-            segments = []
-            current_segment = {"start": transcript[0]["start"], "text": []}
-            
-            for entry in transcript:
-                if entry["start"] - current_segment["start"] > 60:
-                    # Start a new segment
-                    current_segment["text"] = " ".join(current_segment["text"])
-                    segments.append(current_segment)
-                    current_segment = {"start": entry["start"], "text": [entry["text"]]}
-                else:
-                    current_segment["text"].append(entry["text"])
-            
-            # Add the last segment
-            if current_segment["text"]:
-                current_segment["text"] = " ".join(current_segment["text"])
-                segments.append(current_segment)
-            
-            # Convert segments to timestamps
-            for i, segment in enumerate(segments):
-                # Format the time
-                seconds = segment["start"]
-                minutes = int(seconds // 60)
-                seconds_remainder = int(seconds % 60)
-                formatted_time = f"{minutes}:{seconds_remainder:02d}"
-                
-                # Create a title from the first 40 characters of text
-                text = segment["text"]
-                title = text[:40] + "..." if len(text) > 40 else text
-                
-                # Extract simple keywords
-                words = text.lower().split()
-                # Filter out common words
-                common_words = {"the", "a", "an", "and", "or", "but", "is", "are", "was", "were"}
-                keywords = [word for word in words if len(word) > 3 and word not in common_words]
-                # Get top 3 keywords by length
-                keywords = sorted(set(keywords), key=len, reverse=True)[:3]
-                
-                timestamps.append({
-                    "time": segment["start"],
-                    "formatted_time": formatted_time,
-                    "title": f"Segment {i+1}: {title}",
-                    "keywords": keywords
-                })
+        # Generate timestamps using our improved function
+        timestamps = timestamps_feature.generate_timestamps(video_id)
         
         result = {
             'status': 'success',
@@ -161,6 +113,88 @@ def generate_video_timestamps():
         error_response = {
             'status': 'error',
             'videoId': video_id,
+            'error': str(e)
+        }
+        return jsonify(error_response), 500
+
+@app.route('/api/segment_summary', methods=['POST', 'OPTIONS'])
+def summarize_segment():
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        return '', 200
+        
+    # Get data from request
+    data = request.json
+    video_id = data.get('videoId')
+    segment_id = data.get('segmentId')
+    
+    if not video_id or segment_id is None:
+        return jsonify({'error': 'Missing required parameters'}), 400
+    
+    # Create cache key
+    cache_key = f"{video_id}_{segment_id}"
+    if cache_key in segment_cache:
+        print(f"Using cached segment summary for video {video_id}, segment {segment_id}")
+        return jsonify(segment_cache[cache_key])
+    
+    try:
+        # First, check if we already have the timestamps
+        if video_id in timestamps_cache:
+            timestamps = timestamps_cache[video_id]['timestamps']
+        else:
+            # Generate timestamps
+            timestamps = timestamps_feature.generate_timestamps(video_id)
+            timestamps_cache[video_id] = {
+                'status': 'success',
+                'videoId': video_id,
+                'timestamps': timestamps,
+                'timestamp': time.time()
+            }
+        
+        if segment_id >= len(timestamps) or segment_id < 0:
+            return jsonify({'error': 'Invalid segment ID'}), 400
+        
+        # Get the current segment and the next one to determine time range
+        current = timestamps[segment_id]
+        next_time = timestamps[segment_id + 1]["time"] if segment_id + 1 < len(timestamps) else None
+        
+        # Get transcript for this time range
+        segment_text = timestamps_feature.get_segment_transcript(
+            video_id, 
+            current["time"], 
+            next_time
+        )
+        
+        if not segment_text.strip():
+            return jsonify({'error': 'No transcript found for this segment'}), 404
+        
+        # Generate summary for this segment
+        summary = youtube_summarizer.summarize_text(
+            segment_text, 
+            min_length=30,  # Shorter summary for segment
+            max_length=100  # Keep it concise
+        )
+        
+        result = {
+            'status': 'success',
+            'videoId': video_id,
+            'segmentId': segment_id,
+            'summary': summary,
+            'timestamp': current["time"],
+            'formatted_time': current["formatted_time"],
+            'title': current["title"]
+        }
+        
+        # Cache the result
+        segment_cache[cache_key] = result
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        error_response = {
+            'status': 'error',
+            'videoId': video_id,
+            'segmentId': segment_id,
             'error': str(e)
         }
         return jsonify(error_response), 500
@@ -233,6 +267,15 @@ def health_check():
 if __name__ == '__main__':
     # Create cache directory if it doesn't exist
     os.makedirs('cache', exist_ok=True)
+    
+    # Ensure NLTK resources are downloaded before server starts
+    print("Setting up NLTK resources...")
+    try:
+        import timestamps_feature
+        timestamps_feature.ensure_nltk_data()
+    except Exception as e:
+        print(f"Warning: Error downloading NLTK resources: {e}")
+        print("Please run: python -m nltk.downloader punkt")
     
     print("Starting YouTube NLP API server...")
     app.run(host='0.0.0.0', port=5000, debug=True)

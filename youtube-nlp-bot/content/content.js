@@ -104,8 +104,8 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   // Navigate to a specific time in the video
   if (request.action === 'navigateToTime') {
     const timeInSeconds = request.time;
-    navigateToVideoTime(timeInSeconds);
-    sendResponse({status: 'success'});
+    const success = navigateToVideoTime(timeInSeconds);
+    sendResponse({status: success ? 'success' : 'error'});
     return true;
   }
   
@@ -217,18 +217,82 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         
         data.timestamps.forEach(ts => {
           timestampsHtml += `
-            <div class="timestamp-item" data-time="${ts.time}">
+            <div class="timestamp-item" data-time="${ts.time}" data-segment-id="${ts.segment_id}">
               <strong>${ts.formatted_time}</strong> - ${ts.title}
+              <div class="segment-summary-container" id="quick-segment-container-${ts.segment_id}"></div>
             </div>
           `;
         });
         
         timestampsHtml += `
-          <p class="quick-result-note">Click any timestamp to jump to that point</p>
+          <p class="quick-result-note">Click any timestamp to jump to that point and see a summary</p>
           <p class="quick-result-note">Open extension for more options</p>
         `;
         
         updateQuickResult(timestampsHtml);
+        
+        // Add click handlers for timestamps
+        const timestampItems = document.querySelectorAll('.timestamp-item');
+        timestampItems.forEach(item => {
+          item.addEventListener('click', function() {
+            const timeInSeconds = parseFloat(this.getAttribute('data-time'));
+            const segmentId = parseInt(this.getAttribute('data-segment-id'), 10);
+            
+            // Navigate to this time in the video
+            navigateToVideoTime(timeInSeconds);
+            
+            // Check if summary is already generated
+            const summaryContainer = document.getElementById(`quick-segment-container-${segmentId}`);
+            
+            if (summaryContainer.innerHTML.trim() !== '') {
+              // Summary exists, toggle visibility
+              if (summaryContainer.classList.contains('hidden')) {
+                summaryContainer.classList.remove('hidden');
+              } else {
+                summaryContainer.classList.add('hidden');
+              }
+              return;
+            }
+            
+            // Show loading state
+            summaryContainer.innerHTML = `
+              <div class="quick-segment-summary" id="quick-segment-summary-${segmentId}">
+                <p>Loading segment summary...</p>
+              </div>
+            `;
+            
+            // Fetch the summary for this segment
+            fetch('http://localhost:5000/api/segment_summary', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                videoId: currentVideoId,
+                segmentId: segmentId
+              })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.status === 'success') {
+                document.getElementById(`quick-segment-summary-${segmentId}`).innerHTML = `
+                  <div class="quick-segment-summary-content">
+                    <p><strong>Summary:</strong> ${data.summary}</p>
+                  </div>
+                `;
+              } else {
+                throw new Error(data.error || 'Unknown error occurred');
+              }
+            })
+            .catch(error => {
+              document.getElementById(`quick-segment-summary-${segmentId}`).innerHTML = `
+                <div class="quick-segment-summary-error">
+                  <p>Error: ${error.message}</p>
+                </div>
+              `;
+            });
+          });
+        });
       } else {
         throw new Error(data.error || 'Unknown error occurred');
       }
@@ -347,6 +411,45 @@ function displayQuickResult(loadingMessage, resultType) {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    .timestamp-item {
+      padding: 10px 5px;
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .timestamp-item:hover {
+      background-color: #f9f9f9;
+    }
+    
+    .quick-result-note {
+      font-size: 12px;
+      color: #666;
+      margin-top: 10px;
+      font-style: italic;
+    }
+    
+    .quick-result-error {
+      color: #cc0000;
+      margin-bottom: 8px;
+    }
+    
+    .quick-segment-summary {
+      background-color: #f5f5f5;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 14px;
+      margin-top: 8px;
+      border-left: 3px solid #FF0000;
+    }
+    
+    .segment-summary-container {
+      margin-top: 10px;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
   `;
   document.head.appendChild(style);
   
@@ -368,42 +471,6 @@ function updateQuickResult(resultHtml) {
       padding: 10px 0;
       line-height: 1.5;
     `;
-    
-    // Add some styling based on result type
-    const resultType = content.getAttribute('data-result-type');
-    if (resultType === 'timestamps') {
-      const style = document.createElement('style');
-      style.textContent = `
-        .timestamp-item {
-          padding: 8px 5px;
-          cursor: pointer;
-          border-bottom: 1px solid #f0f0f0;
-        }
-        .timestamp-item:hover {
-          background-color: #f9f9f9;
-        }
-        .quick-result-note {
-          font-size: 12px;
-          color: #666;
-          margin-top: 10px;
-          font-style: italic;
-        }
-        .quick-result-error {
-          color: #cc0000;
-          margin-bottom: 8px;
-        }
-      `;
-      document.head.appendChild(style);
-      
-      // Make timestamps clickable to jump to that time
-      const timestampItems = content.querySelectorAll('.timestamp-item');
-      timestampItems.forEach(item => {
-        item.addEventListener('click', function() {
-          const timeInSeconds = parseFloat(this.getAttribute('data-time'));
-          navigateToVideoTime(timeInSeconds);
-        });
-      });
-    }
   }
 }
 
@@ -415,24 +482,22 @@ function removeQuickResult() {
   }
 }
 
-// Convert time string (like "5:32") to seconds
-function timeStringToSeconds(timeString) {
-  const parts = timeString.split(':').map(Number);
-  if (parts.length === 3) { // hours:minutes:seconds
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) { // minutes:seconds
-    return parts[0] * 60 + parts[1];
-  } else {
-    return 0;
-  }
-}
-
 // Navigate to a specific time in the video
 function navigateToVideoTime(seconds) {
+  console.log('Navigating to time:', seconds);
   // Get the video element
   const video = document.querySelector('video');
   if (video) {
+    // Set the current time
     video.currentTime = seconds;
+    
+    // Also try to play the video if it's paused
+    if (video.paused) {
+      video.play()
+        .then(() => console.log('Video started playing'))
+        .catch(err => console.error('Error playing video:', err));
+    }
+    
     // Focus the video so the user can immediately pause if needed
     video.focus();
     
@@ -478,6 +543,12 @@ function navigateToVideoTime(seconds) {
         document.body.removeChild(indicator);
       }
     }, 2000);
+    
+    // Return success status
+    return true;
+  } else {
+    console.error('No video element found');
+    return false;
   }
 }
 

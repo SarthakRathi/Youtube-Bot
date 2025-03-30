@@ -163,6 +163,12 @@ document.addEventListener('DOMContentLoaded', function() {
   backButton.addEventListener('click', function() {
     toolsGrid.classList.remove('hidden');
     resultContainer.classList.add('hidden');
+    
+    // Clear any active segment summaries
+    const segmentSummaries = document.querySelectorAll('.segment-summary');
+    segmentSummaries.forEach(element => {
+      element.remove();
+    });
   });
   
   // Process the selected feature
@@ -257,16 +263,17 @@ document.addEventListener('DOMContentLoaded', function() {
           result = `
             <div class="timestamps-result">
               <h3>Video Timestamps</h3>
-              <p class="timestamps-info">Click on any timestamp to jump to that point in the video.</p>
+              <p class="timestamps-info">Click on any timestamp to jump to that point in the video and generate a summary for that segment.</p>
               <div class="timestamps-list">
                 ${data.timestamps.map(ts => `
-                  <div class="timestamp-item" data-time="${ts.time}">
+                  <div class="timestamp-item" data-time="${ts.time}" data-segment-id="${ts.segment_id}">
                     <span class="timestamp-time">${ts.formatted_time}</span>
                     <span class="timestamp-title">${ts.title}</span>
                     ${ts.keywords && ts.keywords.length > 0 ? 
                       `<div class="timestamp-keywords">
                         ${ts.keywords.map(kw => `<span class="keyword-tag">${kw}</span>`).join('')}
                       </div>` : ''}
+                    <div class="segment-summary-container" id="segment-container-${ts.segment_id}"></div>
                   </div>
                 `).join('')}
               </div>
@@ -308,13 +315,84 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.timestamp-item').forEach(item => {
           item.addEventListener('click', function() {
             const timeInSeconds = parseFloat(this.getAttribute('data-time'));
+            const segmentId = parseInt(this.getAttribute('data-segment-id'), 10);
             
-            // Send message to content script to navigate to this time
+            // Navigate to this time in the video
             chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
               chrome.tabs.sendMessage(tabs[0].id, {
                 action: 'navigateToTime',
                 time: timeInSeconds
               });
+            });
+            
+            // Check if summary is already generated
+            const summaryContainer = document.getElementById(`segment-container-${segmentId}`);
+            
+            if (summaryContainer.innerHTML.trim() !== '') {
+              // Summary exists, toggle visibility
+              if (summaryContainer.classList.contains('hidden')) {
+                summaryContainer.classList.remove('hidden');
+              } else {
+                summaryContainer.classList.add('hidden');
+              }
+              return;
+            }
+            
+            // Show loading state
+            summaryContainer.innerHTML = `
+              <div class="segment-summary" id="segment-summary-${segmentId}">
+                <h4>Loading segment summary...</h4>
+                <div class="loading-spinner"></div>
+              </div>
+            `;
+            
+            // Fetch the summary for this segment
+            fetch('http://localhost:5000/api/segment_summary', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                videoId: currentVideoId,
+                segmentId: segmentId
+              })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.status === 'success') {
+                document.getElementById(`segment-summary-${segmentId}`).innerHTML = `
+                  <div class="segment-summary-content">
+                    <h4>Summary for ${data.formatted_time}</h4>
+                    <p>${data.summary}</p>
+                    <button class="close-summary-btn" data-segment-id="${segmentId}">Hide Summary</button>
+                  </div>
+                `;
+                
+                // Add close button event listener
+                document.querySelector(`.close-summary-btn[data-segment-id="${segmentId}"]`)
+                  .addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    document.getElementById(`segment-container-${segmentId}`).classList.add('hidden');
+                  });
+              } else {
+                throw new Error(data.error || 'Unknown error occurred');
+              }
+            })
+            .catch(error => {
+              document.getElementById(`segment-summary-${segmentId}`).innerHTML = `
+                <div class="segment-summary-error">
+                  <h4>Error</h4>
+                  <p>Could not generate summary: ${error.message}</p>
+                  <button class="close-summary-btn" data-segment-id="${segmentId}">Close</button>
+                </div>
+              `;
+              
+              // Add close button event listener
+              document.querySelector(`.close-summary-btn[data-segment-id="${segmentId}"]`)
+                .addEventListener('click', function(event) {
+                  event.stopPropagation();
+                  document.getElementById(`segment-container-${segmentId}`).classList.add('hidden');
+                });
             });
           });
         });

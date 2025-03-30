@@ -168,12 +168,21 @@ def summarize_segment():
         if not segment_text.strip():
             return jsonify({'error': 'No transcript found for this segment'}), 404
         
-        # Generate summary for this segment
-        summary = youtube_summarizer.summarize_text(
-            segment_text, 
-            min_length=30,  # Shorter summary for segment
-            max_length=100  # Keep it concise
-        )
+        # Generate summary for this segment using the updated parameter names
+        try:
+            # Try with new parameter names (target_min_length, target_max_length)
+            summary = youtube_summarizer.summarize_text(
+                segment_text,
+                target_min_length=30,
+                target_max_length=100
+            )
+        except TypeError:
+            # Fall back to old parameter names if needed
+            summary = youtube_summarizer.summarize_text(
+                segment_text,
+                min_length=30,
+                max_length=100
+            )
         
         result = {
             'status': 'success',

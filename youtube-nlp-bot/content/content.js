@@ -491,13 +491,6 @@ function navigateToVideoTime(seconds) {
     // Set the current time
     video.currentTime = seconds;
     
-    // Also try to play the video if it's paused
-    if (video.paused) {
-      video.play()
-        .then(() => console.log('Video started playing'))
-        .catch(err => console.error('Error playing video:', err));
-    }
-    
     // Focus the video so the user can immediately pause if needed
     video.focus();
     

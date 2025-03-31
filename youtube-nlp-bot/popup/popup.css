@@ -47,24 +47,7 @@ header p {
 /* Grid layout */
 .tools-grid {
   display: grid;
-  grid-template-columns: 1fr;
   gap: 20px;
-}
-
-.category {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-  padding: 20px;
-  margin-bottom: 20px;
-  width: 100%;
-}
-
-.category h2 {
-  color: #333;
-  font-size: 18px;
-  margin-bottom: 15px;
-  font-weight: 500;
 }
 
 .cards {
@@ -171,7 +154,6 @@ header p {
 }
 
 /* Feature-specific styles */
-/* Summary styles */
 .summary-result h3 {
   font-size: 18px;
   margin-bottom: 15px;
@@ -213,17 +195,6 @@ header p {
 .transcript-text {
   white-space: pre-line;
   font-size: 14px;
-}
-
-/* Keypoints styles */
-.keypoints-list {
-  list-style-position: inside;
-  padding-left: 15px;
-}
-
-.keypoints-list li {
-  margin-bottom: 10px;
-  line-height: 1.6;
 }
 
 /* Timestamps styles */
@@ -353,14 +324,14 @@ header p {
   color: #666;
 }
 
-/* Add these styles to your popup.css file */
+/* Keypoints Wiki styles */
 .wiki-summary {
   color: #333;
   line-height: 1.6;
   font-size: 14px;
   margin-bottom: 10px;
-  max-height: 250px;  /* Allow more content to be displayed */
-  overflow-y: auto;   /* Add scrolling for very large entries */
+  max-height: 250px;
+  overflow-y: auto;
   padding-right: 5px;
 }
 

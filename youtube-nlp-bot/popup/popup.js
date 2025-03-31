@@ -23,11 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // First check if the content script is already running
       try {
-        // Use executeScript to check if content script is loaded and get video title directly
         chrome.scripting.executeScript({
           target: {tabId: tab.id},
           function: () => {
-            // Try to get the video title directly
             const titleElement = document.querySelector('h1.title.style-scope.ytd-video-primary-info-renderer, h1.ytd-watch-metadata');
             return titleElement ? titleElement.textContent.trim() : null;
           }
@@ -36,10 +34,8 @@ document.addEventListener('DOMContentLoaded', function() {
             currentVideoTitle = results[0].result;
             videoTitleElement.textContent = currentVideoTitle;
           } else {
-            // Fallback to sending a message to content script
             chrome.tabs.sendMessage(tab.id, {action: 'getVideoDetails'}, function(response) {
               if (chrome.runtime.lastError) {
-                // Content script not ready or not loaded
                 videoTitleElement.textContent = 'YouTube NLP Assistant - Ready';
               } else if (response && response.title) {
                 currentVideoTitle = response.title;
@@ -51,13 +47,11 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         });
       } catch (error) {
-        // If executeScript fails, show a fallback message
         videoTitleElement.textContent = 'Video detected - Ready to analyze';
         console.error('Error executing script:', error);
       }
     } else {
       videoTitleElement.textContent = 'Not a YouTube video page';
-      // Disable all feature cards
       document.querySelectorAll('.card').forEach(card => {
         card.classList.add('disabled');
         card.style.opacity = '0.5';
@@ -71,36 +65,29 @@ document.addEventListener('DOMContentLoaded', function() {
     card.addEventListener('click', function() {
       const feature = this.getAttribute('data-feature');
       
-      // If we're not on a YouTube video page or the card is disabled, do nothing
       if (!currentVideoId || this.classList.contains('disabled')) {
         return;
       }
       
-      // Show the result container and hide the tools grid
       toolsGrid.classList.add('hidden');
       resultContainer.classList.remove('hidden');
       
-      // Update the feature title
       featureTitle.textContent = this.querySelector('h3').textContent;
       
-      // Show loading indicator
       resultContent.innerHTML = `
         <div class="loading">
           <div class="loading-spinner"></div>
         </div>
       `;
       
-      // Try to communicate with the content script first
       chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
         chrome.tabs.sendMessage(
           tabs[0].id, 
           {action: 'verifyConnection'}, 
           function(response) {
-            // If we get a response, process normally
             if (!chrome.runtime.lastError && response) {
               processFeature(feature, currentVideoId);
             } else {
-              // If there's an error, use a fallback method
               console.log('Using fallback method due to content script connection issue');
               processFeatureWithFallback(feature, currentVideoId, tabs[0].id);
             }
@@ -110,13 +97,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
   
-  // Fallback method to process features when content script isn't responding
   function processFeatureWithFallback(feature, videoId, tabId) {
-    // This uses executeScript to work even if the content script isn't responsive
     chrome.scripting.executeScript({
       target: {tabId: tabId},
       function: (featureType) => {
-        // Create a notification directly in the page
         const overlay = document.createElement('div');
         overlay.style.cssText = `
           position: fixed;
@@ -155,58 +139,40 @@ document.addEventListener('DOMContentLoaded', function() {
       args: [feature]
     });
     
-    // Process in the popup as usual
     processFeature(feature, videoId);
   }
   
-  // Back button handler
   backButton.addEventListener('click', function() {
     toolsGrid.classList.remove('hidden');
     resultContainer.classList.add('hidden');
-    
-    // Clear any active segment summaries
     const segmentSummaries = document.querySelectorAll('.segment-summary');
     segmentSummaries.forEach(element => {
       element.remove();
     });
   });
   
-  // Process the selected feature
   function processFeature(feature, videoId) {
-    // API endpoints for different features
+    // Define API endpoints only for features that are implemented
     const apiEndpoints = {
       'summarize': 'http://localhost:5000/api/summarize',
-      'keypoints': 'http://localhost:5000/api/keypoints',
       'keypoints_wiki': 'http://localhost:5000/api/keypoints_wiki',
-      'timestamps': 'http://localhost:5000/api/timestamps',
-      'sentiment': 'http://localhost:5000/api/sentiment'
+      'timestamps': 'http://localhost:5000/api/timestamps'
     };
     
-    // Get the appropriate API endpoint
     const apiUrl = apiEndpoints[feature];
     
-    // If no API endpoint is defined for this feature, use placeholder
     if (!apiUrl) {
       setTimeout(() => {
-        let result = '';
-        
-        switch(feature) {
-          // Handle any features that don't have an API yet
-          default:
-            result = `<div class="feature-placeholder">
+        let result = `<div class="feature-placeholder">
                         <h3>Feature Coming Soon</h3>
                         <p>The ${featureTitle.textContent} feature is under development.</p>
                         <p>This would connect to your NLP backend to provide real results.</p>
                       </div>`;
-        }
-        
         resultContent.innerHTML = result;
-      }, 1500); // Simulate API delay
-      
+      }, 1500);
       return;
     }
     
-    // For features with an API endpoint, make the actual API call
     fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -229,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error(data.error || 'Unknown error occurred');
       }
       
-      // Process the result based on feature type
       let result = '';
       
       switch(feature) {
@@ -245,17 +210,6 @@ document.addEventListener('DOMContentLoaded', function() {
                   <div class="transcript-text">${data.transcript}</div>
                 </div>
               </div>
-            </div>
-          `;
-          break;
-          
-        case 'keypoints':
-          result = `
-            <div class="keypoints-result">
-              <h3>Key Points</h3>
-              <ul class="keypoints-list">
-                ${data.keyPoints.map(point => `<li>${point}</li>`).join('')}
-              </ul>
             </div>
           `;
           break;
@@ -282,15 +236,6 @@ document.addEventListener('DOMContentLoaded', function() {
           `;
           break;
           
-        case 'sentiment':
-          result = `
-            <div class="sentiment-result">
-              <h3>Sentiment Analysis</h3>
-              <p>${data.message || 'Sentiment analysis results will appear here'}</p>
-            </div>
-          `;
-          break;
-          
         case 'keypoints_wiki':
           fetch('http://localhost:5000/api/keypoints_wiki', {
             method: 'POST',
@@ -299,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
               videoId: videoId,
-              numTerms: 8  // Request 8 terms instead of default 5
+              numTerms: 8
             })
           })
           .then(response => {
@@ -320,7 +265,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="keypoints-wiki-container">
             `;
             
-            // Add each key term
             data.keyPoints.forEach((item, index) => {
               keyTermsHtml += `
                 <div class="keypoint-wiki-item">
@@ -356,15 +300,14 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             `;
           });
-          break;          
-
+          break;
+          
         default:
           result = `<div class="error">Unexpected feature type: ${feature}</div>`;
       }
       
       resultContent.innerHTML = result;
       
-      // Add event listeners for interactive elements
       if (feature === 'summarize') {
         document.getElementById('show-transcript').addEventListener('click', function() {
           const container = document.getElementById('transcript-container');
@@ -379,13 +322,11 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         });
       } else if (feature === 'timestamps') {
-        // Add click handlers for timestamps
         document.querySelectorAll('.timestamp-item').forEach(item => {
           item.addEventListener('click', function() {
             const timeInSeconds = parseFloat(this.getAttribute('data-time'));
             const segmentId = parseInt(this.getAttribute('data-segment-id'), 10);
             
-            // Navigate to this time in the video
             chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
               chrome.tabs.sendMessage(tabs[0].id, {
                 action: 'navigateToTime',
@@ -393,11 +334,9 @@ document.addEventListener('DOMContentLoaded', function() {
               });
             });
             
-            // Check if summary is already generated
             const summaryContainer = document.getElementById(`segment-container-${segmentId}`);
             
             if (summaryContainer.innerHTML.trim() !== '') {
-              // Summary exists, toggle visibility
               if (summaryContainer.classList.contains('hidden')) {
                 summaryContainer.classList.remove('hidden');
               } else {
@@ -406,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
               return;
             }
             
-            // Show loading state
             summaryContainer.innerHTML = `
               <div class="segment-summary" id="segment-summary-${segmentId}">
                 <h4>Loading segment summary...</h4>
@@ -414,7 +352,6 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             `;
             
-            // Fetch the summary for this segment
             fetch('http://localhost:5000/api/segment_summary', {
               method: 'POST',
               headers: {
@@ -436,7 +373,6 @@ document.addEventListener('DOMContentLoaded', function() {
                   </div>
                 `;
                 
-                // Add close button event listener
                 document.querySelector(`.close-summary-btn[data-segment-id="${segmentId}"]`)
                   .addEventListener('click', function(event) {
                     event.stopPropagation();
@@ -455,7 +391,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
               `;
               
-              // Add close button event listener
               document.querySelector(`.close-summary-btn[data-segment-id="${segmentId}"]`)
                 .addEventListener('click', function(event) {
                   event.stopPropagation();

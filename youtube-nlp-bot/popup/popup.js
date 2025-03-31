@@ -17,11 +17,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if we're on a YouTube video page
     if (tab.url && tab.url.includes('youtube.com/watch')) {
-      // Extract video ID from URL
       const url = new URL(tab.url);
       currentVideoId = url.searchParams.get('v');
       
-      // First check if the content script is already running
       try {
         chrome.scripting.executeScript({
           target: {tabId: tab.id},
@@ -64,14 +62,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.card').forEach(card => {
     card.addEventListener('click', function() {
       const feature = this.getAttribute('data-feature');
-      
       if (!currentVideoId || this.classList.contains('disabled')) {
         return;
       }
       
       toolsGrid.classList.add('hidden');
       resultContainer.classList.remove('hidden');
-      
       featureTitle.textContent = this.querySelector('h3').textContent;
       
       resultContent.innerHTML = `
@@ -113,32 +109,26 @@ document.addEventListener('DOMContentLoaded', function() {
           z-index: 9999;
           width: 300px;
         `;
-        
         overlay.innerHTML = `
           <h3 style="margin-top: 0; color: #FF0000;">YouTube NLP Assistant</h3>
           <p>Processing ${featureType} request...</p>
           <p style="font-size: 12px;">Please wait while we analyze this video</p>
         `;
-        
         document.body.appendChild(overlay);
-        
         setTimeout(() => {
           overlay.innerHTML = `
             <h3 style="margin-top: 0; color: #FF0000;">YouTube NLP Assistant</h3>
             <p>Analysis complete!</p>
             <p>Please check the extension popup to view results.</p>
           `;
-          
           setTimeout(() => {
             document.body.removeChild(overlay);
           }, 3000);
         }, 2000);
-        
         return true;
       },
       args: [feature]
     });
-    
     processFeature(feature, videoId);
   }
   
@@ -152,21 +142,21 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   function processFeature(feature, videoId) {
-    // Define API endpoints only for features that are implemented
+    // Define API endpoints only for the features that have backend support.
     const apiEndpoints = {
       'summarize': 'http://localhost:5000/api/summarize',
-      'keypoints_wiki': 'http://localhost:5000/api/keypoints_wiki',
-      'timestamps': 'http://localhost:5000/api/timestamps'
+      'timestamps': 'http://localhost:5000/api/timestamps',
+      'keypoints_wiki': 'http://localhost:5000/api/keypoints_wiki'
     };
     
     const apiUrl = apiEndpoints[feature];
     
+    // For features without a dedicated API, show a placeholder message.
     if (!apiUrl) {
       setTimeout(() => {
         let result = `<div class="feature-placeholder">
                         <h3>Feature Coming Soon</h3>
-                        <p>The ${featureTitle.textContent} feature is under development.</p>
-                        <p>This would connect to your NLP backend to provide real results.</p>
+                        <p>The ${feature} feature is under development.</p>
                       </div>`;
         resultContent.innerHTML = result;
       }, 1500);
@@ -213,7 +203,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           `;
           break;
-          
         case 'timestamps':
           result = `
             <div class="timestamps-result">
@@ -235,7 +224,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           `;
           break;
-          
         case 'keypoints_wiki':
           fetch('http://localhost:5000/api/keypoints_wiki', {
             method: 'POST',
@@ -244,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
               videoId: videoId,
-              numTerms: 8
+              numPoints: 8
             })
           })
           .then(response => {
@@ -301,9 +289,11 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
           });
           break;
-          
         default:
-          result = `<div class="error">Unexpected feature type: ${feature}</div>`;
+          result = `<div class="feature-placeholder">
+                      <h3>Feature Coming Soon</h3>
+                      <p>The ${feature} feature is under development.</p>
+                    </div>`;
       }
       
       resultContent.innerHTML = result;
@@ -312,7 +302,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('show-transcript').addEventListener('click', function() {
           const container = document.getElementById('transcript-container');
           const button = document.getElementById('show-transcript');
-          
           if (container.classList.contains('hidden')) {
             container.classList.remove('hidden');
             button.textContent = 'Hide Full Transcript';
@@ -326,16 +315,13 @@ document.addEventListener('DOMContentLoaded', function() {
           item.addEventListener('click', function() {
             const timeInSeconds = parseFloat(this.getAttribute('data-time'));
             const segmentId = parseInt(this.getAttribute('data-segment-id'), 10);
-            
             chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
               chrome.tabs.sendMessage(tabs[0].id, {
                 action: 'navigateToTime',
                 time: timeInSeconds
               });
             });
-            
             const summaryContainer = document.getElementById(`segment-container-${segmentId}`);
-            
             if (summaryContainer.innerHTML.trim() !== '') {
               if (summaryContainer.classList.contains('hidden')) {
                 summaryContainer.classList.remove('hidden');
@@ -344,14 +330,12 @@ document.addEventListener('DOMContentLoaded', function() {
               }
               return;
             }
-            
             summaryContainer.innerHTML = `
               <div class="segment-summary" id="segment-summary-${segmentId}">
                 <h4>Loading segment summary...</h4>
                 <div class="loading-spinner"></div>
               </div>
             `;
-            
             fetch('http://localhost:5000/api/segment_summary', {
               method: 'POST',
               headers: {
@@ -372,7 +356,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button class="close-summary-btn" data-segment-id="${segmentId}">Hide Summary</button>
                   </div>
                 `;
-                
                 document.querySelector(`.close-summary-btn[data-segment-id="${segmentId}"]`)
                   .addEventListener('click', function(event) {
                     event.stopPropagation();
@@ -390,7 +373,6 @@ document.addEventListener('DOMContentLoaded', function() {
                   <button class="close-summary-btn" data-segment-id="${segmentId}">Close</button>
                 </div>
               `;
-              
               document.querySelector(`.close-summary-btn[data-segment-id="${segmentId}"]`)
                 .addEventListener('click', function(event) {
                   event.stopPropagation();

@@ -146,7 +146,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiEndpoints = {
       'summarize': 'http://localhost:5000/api/summarize',
       'timestamps': 'http://localhost:5000/api/timestamps',
-      'keypoints_wiki': 'http://localhost:5000/api/keypoints_wiki'
+      'keypoints_wiki': 'http://localhost:5000/api/keypoints_wiki',
+      'factcheck': 'http://localhost:5000/api/factcheck'
     };
     
     const apiUrl = apiEndpoints[feature];
@@ -264,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                           <a href="${item.wikipedia_info.url}" target="_blank" class="wiki-title-link">${item.wikipedia_info.title}</a>
                         </div>
                         <div class="wiki-summary">${item.wikipedia_info.summary}</div>
+                        <a href="${item.wikipedia_info.url}" target="_blank" class="wiki-link">Read more on Wikipedia</a>
                       </div>
                     ` : '<div class="no-wiki-info">No Wikipedia information available for this term.</div>'}
                   </div>
@@ -288,12 +290,39 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             `;
           });
+          return; // Exit early because keypoints_wiki uses its own fetch.
+        
+        case 'factcheck':
+          // For fact check, display a loading state and then update with sentiment data.
+          result = `
+            <div class="factcheck-result">
+              <h3>Fact Check & Sentiment Analysis</h3>
+              <p>Analyzing comments sentiment...</p>
+              <div class="factcheck-details"></div>
+            </div>
+          `;
           break;
+          
         default:
           result = `<div class="feature-placeholder">
                       <h3>Feature Coming Soon</h3>
                       <p>The ${feature} feature is under development.</p>
                     </div>`;
+      }
+      
+      // If feature is factcheck, process its result separately
+      if (feature === 'factcheck') {
+        const details = data.sentiment;
+        resultContent.innerHTML = `
+          <div class="factcheck-result">
+            <h3>Fact Check & Sentiment Analysis</h3>
+            <p>Total comments analyzed: ${details.total_comments}</p>
+            <p>Positive: ${details.positive_percentage}%</p>
+            <p>Negative: ${details.negative_percentage}%</p>
+            <p><strong>Sample Comments:</strong> ${data.comments_sample.join(' | ')}</p>
+          </div>
+        `;
+        return;
       }
       
       resultContent.innerHTML = result;

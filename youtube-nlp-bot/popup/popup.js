@@ -313,16 +313,62 @@ document.addEventListener('DOMContentLoaded', function() {
       // If feature is factcheck, process its result separately
       if (feature === 'factcheck') {
         const details = data.sentiment;
+        
+        // Calculate percentages for progress bars
+        const positiveWidth = details.positive_percentage;
+        const negativeWidth = details.negative_percentage;
+        
         resultContent.innerHTML = `
           <div class="factcheck-result">
             <h3>Fact Check & Sentiment Analysis</h3>
-            <p>Total comments analyzed: ${details.total_comments}</p>
-            <p>Positive: ${details.positive_percentage}%</p>
-            <p>Negative: ${details.negative_percentage}%</p>
-            <p><strong>Sample Comments:</strong> ${data.comments_sample.join(' | ')}</p>
+            <p class="factcheck-info">Analysis based on ${details.total_comments} comments from this video</p>
+            
+            <div class="sentiment-container">
+              <div class="sentiment-item">
+                <div class="sentiment-header">
+                  <span class="sentiment-label">Positive</span>
+                  <span class="sentiment-percentage">${details.positive_percentage}%</span>
+                </div>
+                <div class="sentiment-bar-container">
+                  <div class="sentiment-bar positive" style="width: ${positiveWidth}%"></div>
+                </div>
+              </div>
+              
+              <div class="sentiment-item">
+                <div class="sentiment-header">
+                  <span class="sentiment-label">Negative</span>
+                  <span class="sentiment-percentage">${details.negative_percentage}%</span>
+                </div>
+                <div class="sentiment-bar-container">
+                  <div class="sentiment-bar negative" style="width: ${negativeWidth}%"></div>
+                </div>
+              </div>
+            </div>
+            
+            
+            <div class="factcheck-section">
+              <h4>Sample Comments</h4>
+              <div class="comments-container">
+                ${generateCommentsHTML(data.comments_sample || [])}
+              </div>
+            </div>
           </div>
         `;
         return;
+      }
+
+      function generateCommentsHTML(comments) {
+        if (!comments.length) {
+          return `<div class="no-comments">No comments available</div>`;
+        }
+        
+        return comments.map(comment => {
+          return `
+            <div class="comment-item">
+              <p class="comment-text">${comment}</p>
+            </div>
+          `;
+        }).join('');
       }
       
       resultContent.innerHTML = result;

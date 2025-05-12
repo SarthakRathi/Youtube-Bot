@@ -1,65 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouTube NLP Assistant</title>
-  <link rel="stylesheet" href="popup.css">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-</head>
-<body>
-  <div class="container">
-    <header>
-      <h1>YouTube NLP Assistant</h1>
-      <p id="video-title">Processing video...</p>
-    </header>
-    
-    <!-- Single merged grid for all features -->
-    <div class="tools-grid">
-      <div class="cards">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YouTube NLP Assistant</title>
+    <link rel="stylesheet" href="popup.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>YouTube NLP Assistant</h1>
+        <p id="video-title">Processing video...</p>
+      </header>
+
+      <!-- Tools grid with improved layout -->
+      <div class="tools-grid">
+        <div class="cards">
           <div class="card" data-feature="summarize">
             <div class="card-icon">📝</div>
             <h3>Summarize</h3>
             <p>Get a concise summary of the video content</p>
           </div>
-          
+
           <div class="card" data-feature="timestamps">
             <div class="card-icon">⏱️</div>
             <h3>Timestamps</h3>
             <p>Create chapter markers for different segments</p>
           </div>
-          
+
           <div class="card" data-feature="keypoints_wiki">
             <div class="card-icon">🔑</div>
             <h3>Key Points</h3>
             <p>Extract main points with Wikipedia context</p>
           </div>
-          
+
           <div class="card" data-feature="factcheck">
             <div class="card-icon">✓</div>
             <h3>Fact Check</h3>
             <p>Flag potentially misleading information</p>
           </div>
-          
-          <div class="card" data-feature="translate">
-            <div class="card-icon">🌐</div>
-            <h3>Translate</h3>
-            <p>Translate video content to different languages</p>
-          </div>
+        </div>
+      </div>
+
+      <div id="result-container" class="hidden">
+        <div class="result-header">
+          <button id="back-button">← Back to Tools</button>
+          <h2 id="feature-title">Feature Result</h2>
+        </div>
+        <div id="result-content">
+          <!-- Results will be displayed here -->
+        </div>
       </div>
     </div>
-    
-    <div id="result-container" class="hidden">
-      <div class="result-header">
-        <button id="back-button">← Back to Tools</button>
-        <h2 id="feature-title">Feature Result</h2>
-      </div>
-      <div id="result-content">
-        <!-- Results will be displayed here -->
-      </div>
-    </div>
-  </div>
-  
-  <script src="popup.js"></script>
-</body>
+
+    <script src="popup.js"></script>
+  </body>
 </html>

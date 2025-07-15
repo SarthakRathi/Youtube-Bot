@@ -309,7 +309,7 @@ def fact_check():
 
     try:
         # Fetch comments using the YouTube Data API
-        api_key = os.environ.get("YOUTUBE_API_KEY")
+        api_key = ""
         if not api_key:
             raise Exception("YouTube API key not set. Please set the YOUTUBE_API_KEY environment variable.")
         

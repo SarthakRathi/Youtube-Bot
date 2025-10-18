@@ -3,6 +3,7 @@ from flask_cors import CORS
 import youtube_summarizer
 import time
 import os
+from dotenv import load_dotenv
 
 # Import the timestamps feature
 import timestamps_feature
@@ -10,6 +11,8 @@ import timestamps_feature
 # For fact check functionality
 from transformers import pipeline
 from googleapiclient.discovery import build
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -309,7 +312,7 @@ def fact_check():
 
     try:
         # Fetch comments using the YouTube Data API
-        api_key = ""
+        api_key = os.getenv("YOUTUBE_API_KEY")
         if not api_key:
             raise Exception("YouTube API key not set. Please set the YOUTUBE_API_KEY environment variable.")
         

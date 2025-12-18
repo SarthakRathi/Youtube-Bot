@@ -4,20 +4,16 @@ import youtube_summarizer
 import time
 import os
 from dotenv import load_dotenv
-
-# Import the timestamps feature
 import timestamps_feature
 
-# For fact check functionality
 from transformers import pipeline
 from googleapiclient.discovery import build
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
-# Create caches
 summary_cache = {}
 timestamps_cache = {}
 segment_cache = {}

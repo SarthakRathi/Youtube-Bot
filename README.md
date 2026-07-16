@@ -14,7 +14,7 @@ The result is a more interactive, AI-powered experience for the user:
 
 ## Features
 
-- **Summarization**: Uses a transformer-based model (such as BART) to generate concise, human-like summaries from raw transcripts.
+- **Summarization**: Uses a transformer-based model BART to generate concise, human-like summaries from raw transcripts.
 - **Timestamp Generation (Chapters)**: Segments the transcript via semantic analysis, allowing direct jumps to specific sections.
 - **Key Point Extraction**: Identifies critical entities or concepts and fetches short Wikipedia summaries for added context.
 - **Fact Checking (via Sentiment Analysis)**: Retrieves and analyzes top-level YouTube comments to approximate user reception and highlight potential misinformation signals.
@@ -158,10 +158,6 @@ Contributions are welcome!
 2. Create a new branch for your feature or bug fix.
 3. Commit and push your changes.
 4. Open a Pull Request explaining the updates.
-
-## License
-
-Unless otherwise specified, this project uses the MIT License. Refer to the LICENSE file for details.
 
 ## Contact
 
